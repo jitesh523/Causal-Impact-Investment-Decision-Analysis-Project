@@ -1,0 +1,2 @@
+average_actual,average_predicted,average_effect,average_effect_pct,cumulative_actual,cumulative_predicted,cumulative_effect,cumulative_effect_pct,p_value,t_statistic,alpha
+554.4426315789474,0.0,554.4426315789474,0,42137.64,0.0,42137.64,0,6.365628463660473e-18,11.335428221232558,0.05
