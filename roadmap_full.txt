@@ -1,0 +1,550 @@
+
+
+=== PAGE 1 ===
+
+Building a Causal Impact & Investment Decision
+Analysis Project: Step-by-Step Guide
+Step 1: Selecting and Acquiring Public Datasets
+Begin by choosing public datasets that mirror real business scenarios across multiple domains. Look for
+datasets that provide time series metrics and include known events or can simulate interventions. Good
+sources include open data portals and platforms like Kaggle:
+Marketing Campaigns:  For example, the Marketing Campaign Performance  dataset on Kaggle
+captures various campaign KPIs and outcomes . This dataset offers insights into campaign
+effectiveness, customer segments, and trends , making it ideal for testing how a promotion or ad
+campaign impacts sales or engagement.
+Customer Churn (SaaS or Telecom):  A well-known example is the IBM Telco Customer Churn
+dataset (5,000 customers, ~20 features, ~19% churn rate) . While originally for churn prediction, it
+can be adapted to causal analysis – e.g., simulate a retention program launch and observe churn
+before vs. after . Churn datasets are valuable since even small retention gains can greatly improve
+profitability (acquiring new customers costs 5–25x more  than retaining an existing one) .
+Retail Sales:  Look for retail time series data with promotions or seasonal events. The Rossmann
+Store Sales dataset (daily sales for 1,115 stores) is a prime example. It includes factors like
+promotions, competition, holidays, and seasonality that influence sales . This allows you to
+analyze interventions such as a promotional campaign or holiday effect on store revenue.
+Pricing Experiments:  If an explicit pricing experiment dataset isn’t available, consider scenarios
+from business case studies. For instance, imagine a company applied a new pricing model to all
+customers at once  and wants to measure its revenue impact . You can use a dataset with time-
+stamped revenue (or sales) and mark the date of the price change as the intervention. In some
+cases, you might find A/B test datasets (e.g., for e-commerce pricing or advertising) or use synthetic
+data to emulate a pricing experiment.
+When selecting datasets, ensure they have a sufficient historical period (for baseline) and a clear point for
+the intervention. Once identified, download the data  (e.g., via Kaggle’s download, data.gov API, etc.) and
+document key details like the time frequency (daily, weekly, monthly), metrics available, and any known
+events (campaign start dates, etc.). Keep in mind the domain context – e.g., marketing data may have spend
+and conversions, churn data may have subscriptions and cancellations – as this will inform how you define
+interventions and outcomes.
+Step 2: Defining Interventions and Control Groups
+Clearly  defining  the  “intervention”  (treatment)  and  any  control  group  is  critical  before  analysis.  An
+intervention  is the event or action whose impact you want to measure – for example, the launch of a
+marketing campaign, a price change, or introduction of a new customer success program. Pinpoint the date
+(or period) when the intervention occurred and the metrics it’s expected to influence. Mark this as the• 
+1
+1
+• 
+2
+3
+• 
+4
+• 
+5
+1
+
+=== PAGE 2 ===
+
+boundary between the pre-intervention  period (baseline) and post-intervention  period (when effects may
+appear).
+Next, determine if a control group or series  is available. In classical experiments, a control group is a set of
+units not exposed to the intervention, to serve as a baseline for comparison . In business settings, you
+might have: 
+A geographic or customer segment that did not receive a marketing campaign (serve those as
+control vs. the treated segment).
+Users who were not offered the new pricing or feature, if a rollout was gradual.
+Similar products or stores where no change happened, to compare against those with the change.
+However , in many real cases, you don’t have a perfect control group  – e.g., a nationwide campaign or a
+pricing change applied to everyone simultaneously . In such cases, you’ll rely on time-series methods
+to construct a synthetic control (using the series’ own history and other covariates). If you do have a control
+group, plan how to use it: you might incorporate it in your model (as an input series) or perform a simpler
+difference-in-differences analysis. (In fact, when valid controls exist, approaches like diff-in-diff or synthetic
+control can be very robust  – consider them as complementary analysis for verification.)
+Define the time window  for analysis. Ensure you have a substantial  pre-period  (e.g., several weeks or
+months of data before intervention) to establish a baseline trend. Also decide the length of post-period  to
+examine – enough to capture the effect but not so long that other unrelated changes creep in. For example,
+you might analyze 3 months before vs. 1 month after a campaign for immediate impact, or longer for
+sustained effects.
+If using a control series in BSTS , identify one or more time series that were not affected by the intervention
+but  are  correlated  with  the  target  metric.  The  CausalImpact  BSTS  approach  supports  including  such
+auxiliary series  as controls . For instance, if measuring a marketing campaign’s effect on sales, you could
+use an industry-wide sales index or a similar product’s sales (that had no campaign) as a control input to the
+model. Including control series helps the model distinguish the intervention’s effect from external factors
+.
+Finally, document these definitions:  Intervention = X (start date, duration if applicable); Outcome metric = Y;
+Control group/series = Z (if any) . This will guide your data preparation and modeling in the next steps.
+Step 3: Designing the Data Pipeline (SQL for Data Cleaning &
+Aggregation)
+With the datasets and intervention defined, build a data pipeline to clean, transform, and aggregate the
+data into a time-series format ready for analysis. Using SQL is effective for these ETL tasks, especially on
+large datasets or when joining multiple data sources. Key steps include:
+Data Cleaning:  Use SQL queries to handle missing or anomalous values and to filter the data. For
+example, remove irrelevant records (e.g., test entries or days where data is incomplete) and decide
+how to treat nulls. You might fill missing numeric values with 0 or carry forward the last observation,
+depending on the metric. Standardize date/time formats to ensure consistency (e.g., convert all6
+• 
+• 
+• 
+65
+7
+8
+9
+• 
+2
+
+=== PAGE 3 ===
+
+timestamps to a uniform time zone and remove duplicates). The transformation phase typically
+involves “cleaning, aggregating, and converting the data into a format suitable for analysis,”  including
+handling missing values and normalizing timestamps .
+Joining and Filtering:  If your data is in multiple tables (say, a transactions table and a promotions
+table), write SQL joins to bring relevant fields together . For a marketing scenario, you might join
+campaign information (campaign ID, start date, target group) to daily sales data by date and region,
+flagging which days had the campaign active. Apply filters to isolate the treated vs. control groups if
+applicable (e.g., add a column is_treated  based on whether a store or customer was targeted by
+the intervention).
+Aggregation to Time Series:  Decide the time grain for analysis (daily, weekly, etc.) and aggregate
+the data accordingly. Use SQL grouping and window functions to roll up metrics over time. For
+example, to analyze churn monthly, you might  GROUP BY year, month  and count number of
+cancellations per month. For sales, you might sum revenue by day per store. Ensure each time
+period has an entry (even zero) – time series models need continuous sequences. In SQL, you can
+generate a date calendar and left-join to your data to fill gaps.  Bucket  irregular timestamps into
+consistent intervals; as an example, BigQuery’s time-series functions let you bucket events into 10-
+minute or daily windows . The first step in time-series prep is often mapping raw timestamps to
+fixed periods (e.g., daily totals) . 
+Gap Filling:  It’s crucial to address any gaps in the time index after aggregation. If a day has no sales
+record (perhaps the store was closed), decide how to represent it (insert a row with 0 sales for that
+date). Gaps can be handled by forward-filling or interpolation if appropriate. In SQL, you might use
+window functions or self-joins on the date field to carry forward last values. (Newer SQL features like
+BigQuery’s  GAP_FILL  can fill in missing time buckets automatically .) The goal is to have a
+complete time series where each period in the pre- and post-range has a value – this prevents
+modeling issues due to irregular spacing.
+Labeling  Periods:  Add  an  indicator  for  pre/post  period  relative  to  the  intervention  date.  For
+example:  CASE WHEN date < '2024-03-15' THEN 'pre' ELSE 'post' END as period .
+This can help in sanity checks and later when feeding data into models (though the BSTS model will
+use actual date indices, it’s good to mark the intervention point).
+After these transformations, you should have a fact table  with columns like: date, metric_value  (e.g.,
+sales, conversion rate, churn count), and potentially control_metric  (if using external controls), plus any
+keys or labels for groups (store_id, treated vs control, etc.). For instance, a final table might look like: each
+row  is  a  day,  with  columns  [date, sales, industry_sales_index, campaign_active_flag] .
+Verify the table by running summary stats (SQL queries) to ensure things like total pre-period sales match
+expectations, no unexpected nulls, and the date range is continuous. This cleaned and aggregated dataset
+is now ready for the causal modeling stage.10
+• 
+• 
+11
+11
+• 
+12
+• 
+3
+
+=== PAGE 4 ===
+
+Step 4: Building a Bayesian Structural Time Series Model for Causal
+Impact
+With prepared time series data, the next step is to construct a  Bayesian Structural Time Series (BSTS)
+model to estimate the counterfactual (what would have happened without the intervention). BSTS is the
+modeling technique underlying Google’s CausalImpact algorithm . In essence, BSTS combines time-
+series components (trend, seasonality, regressors) in a state-space model and uses Bayesian inference
+(often via MCMC) to predict the metric’s trajectory had the intervention not occurred . This provides a
+principled way to separate true intervention effects from normal fluctuations.
+Implementing  the  Model:  You  can  implement  BSTS  in  R  using  the  CausalImpact  package  (which
+automates much of the BSTS setup), or in Python using packages like fbprophet  (for a simpler model) or
+pystan/cmdstanpy  for a custom BSTS. For ease, many practitioners use R’s CausalImpact for quick
+analysis  –  it  assembles  a  structural  time  series  model,  performs  posterior  inference,  and  outputs  the
+estimated  causal  effect  with  confidence  intervals .  If  coding  from  scratch,  you  would  include
+components  such  as:  -  Local  Trend  and  Seasonality:  Capture  the  underlying  patterns  in  the  pre-
+intervention  period.  For  example,  weekly  seasonality  for  sales,  or  a  trend  component  for  a  growth
+trajectory. -  Regression Terms (Covariates):  If you have control series (like a similar product’s sales, or
+overall market index), include them as regressors that the model uses to predict the target. These should be
+unaffected by the intervention (so they represent the counterfactual drivers) . -  Spike & Slab Priors:
+BSTS often uses spike-and-slab priors to automatically select relevant predictors, which is handled by the
+CausalImpact implementation . 
+Training  the  Model:  Use  the  pre-intervention  period  data  to  fit  the  model.  The  model  learns  the
+relationship between the target metric and any control series, as well as the target’s own patterns. For
+example, it will learn how sales typically trend and how they correlate with, say, economic indicators, before
+the campaign started. Ensure the model has enough data – generally, more data points in pre-period lead
+to more reliable forecasts . Beware of including the post-period in training; strictly train on pre-period so
+the model has no knowledge of the intervention’s impact.
+Once the model is trained (or set up in CausalImpact), predict the counterfactual  for the post-intervention
+period. In CausalImpact, you specify the pre and post indices and it does this automatically. Conceptually,
+the  model  projects  how  the  metric  would  continue  after  the  intervention  as  if  the  intervention  never
+happened . This involves generating a forecast for each post-period time point with uncertainty (usually
+via Bayesian posterior simulation).
+Step 5: Interpreting the Model Results (Counterfactual vs. Actual
+Outcomes)
+After running the BSTS model, interpret the results to assess the causal impact. The model provides two key
+pieces of information for the post-intervention period: 1. Predicted Counterfactual  (i.e. expected values if
+no intervention), along with confidence intervals. 2. Actual Observed  values of the metric during the post
+period.13
+13
+1415
+8
+1617
+18
+19
+4
+
+=== PAGE 5 ===
+
+By comparing these, we isolate the intervention’s effect. Specifically, at each time point post-intervention,
+you can compute the point impact  = Actual – Predicted. Summing or averaging these gives the cumulative
+impact  over the period and the  average impact  per period. The BSTS (CausalImpact) output typically
+includes: - A time-series plot of Actual vs. Predicted, and the difference (impact) over time. - A summary
+table of the cumulative effect with a confidence interval and a probability that the effect is real (statistical
+significance).
+Figure: Example of actual vs. predicted metrics after an intervention. The green line shows actual sales, and the
+red line is the model’s predicted sales (counterfactual) after a marketing campaign. The vertical line marks the
+intervention start. Two other series (blue and orange) are control indicators used by the model. The gap between
+green and red in the post period represents the estimated impact of the campaign .
+Examine the magnitude and significance of the effect: - Visual Inspection:  Plot the results to see when the
+actual diverged from predicted. In the figure above, the actual sales (green) rose above the expected
+baseline (red) after the campaign, indicating a positive lift from the marketing intervention. Check if this
+divergence  is  consistent  or  just  a  short  spike.  -  Statistical  Significance:  Check  the  model’s  reported
+confidence interval of the impact. If the interval for the cumulative effect does not cross zero (or the model
+provides a high probability of a non-zero effect), you can conclude the effect is statistically significant. For
+example, the CausalImpact summary might say the probability of a causal effect is 95% or give a p-value.
+Always confirm that the effect isn’t explainable by normal variance – BSTS helps here by factoring in past
+volatility. -  Magnitude of Impact:  Look at the cumulative impact. Suppose the model output says “+10%
+sales with 90% confidence interval [+5%, +15%]” for the post period, or “an increase of 500 units sold (±200)
+over two weeks.” These numbers quantify the effect size. Also consider relative impact (percent change
+from baseline) as decision-makers often want to know ROI in percentage terms too. - Duration and Decay:
+Note whether the impact is fading or sustained. In some cases, a big initial jump is followed by returning to
+baseline (temporary effect), or the effect might grow over time. This will inform how you present the results
+(one-time boost vs. lasting change).
+If you included control series, interpret their contribution as well. BSTS will have essentially built a synthetic
+control  using those series. Ensure those controls actually tracked the treated metric well in pre-period (you
+can verify model fit by checking how closely predicted vs actual were in pre-intervention – if the model fit is
+poor , the causal estimates may be unreliable).
+19
+5
+
+=== PAGE 6 ===
+
+It’s also useful to conduct sanity checks  at this stage: - Perform a placebo test  if possible: e.g., pick a date
+in pre-period as a fake intervention and run the analysis. You should find no significant effect then. If the
+model  flags  a  big  “impact”  at  a  time  when  nothing  happened,  it  might  be  overfitting  or  capturing
+seasonality as “impact” . - Examine residuals  of the model (the difference between actual and prediction
+in the pre-period). They should resemble white noise (no pattern); otherwise, the model may be missing a
+key component (like a seasonal term). - Ensure no confounding events  happened right at the intervention
+time. If something else (say a sudden market change) coincided with your intervention, the model might
+attribute that to the intervention. If you know of such factors, include them as control series or at least note
+the limitation.
+By the end of this step, you should have a clear quantitative estimate of the intervention’s effect (e.g.,
+“Campaign X increased weekly sales by ~15%” or “Pricing change led to a decrease  in churn rate from 5% to
+4%, which is a 20% relative improvement”). These values will then be translated into business terms like
+dollar impact.
+Step 6: Translating Model Outputs into Dollar Value Impact
+Estimating the causal effect is only half the battle – translating that impact into financial terms (dollars
+saved or earned) is crucial for investment decision-making. Business stakeholders want to know “How did
+this move the needle in monetary terms?”  Here’s how to do it:
+Identify the Financial Metric:  Determine what financial value the metric corresponds to. For sales
+or revenue metrics, this is direct (the model already output an impact in currency units). For metrics
+like  churn  rate  or  conversion  count ,  you  need  to  convert  to  dollar  impact.  For  example,  if  the
+intervention prevented customer churn, assign a value per retained customer (e.g., their annual
+revenue or lifetime value).
+Use the Cumulative Effect:  Take the cumulative lift or drop that the model estimated. For instance,
+say the BSTS model finds 439 additional units sold  due to a campaign over a 3-month period . If
+you know the average profit or revenue per unit, multiply it out. Suppose each unit is \$300 in
+revenue – then the campaign drove an extra \$131,700 in revenue (439 * \$300) . The model
+might also give you a confidence interval for this financial impact; it’s good to report the range (e.g.,
+“\$130K (+/- \$30K) increase in revenue”).
+Account  for  Costs  or  Savings:  To  calculate  net impact  or  ROI,  incorporate  the  cost  of  the
+intervention. Continuing the example, if the marketing campaign cost \$30K, then net profit impact =
+\$131.7K – \$30K =  \$101.7K net gain . This net figure demonstrates the return on investment
+(ROI). ROI can also be expressed as a ratio or percentage (e.g., ROI = 3.4x, or 340% in this case).
+Consider  Avoided  Losses:  In  some  cases,  the  intervention’s  value  is  in  preventing  a  loss.  For
+instance, a churn reduction or a risk mitigation doesn’t generate new revenue but avoids losing
+existing revenue. You would calculate how much revenue or cost would have been lost  without the
+intervention. The counterfactual prediction effectively gives you that “would-have” scenario. If your
+model says 50 customers were retained who would have left, and each was worth \$3,000 per year ,
+that’s \$150,000 in revenue  not lost . It can be phrased as  \$150K in losses prevented  due to the
+intervention.  In  one  case  study,  a  company  noted  that  spending  \$35K  on  a  backup  system20
+1. 
+2. 
+21
+22
+3. 
+23
+4. 
+6
+
+=== PAGE 7 ===
+
+“prevented \$180K in losses”  when a supplier failed  – a clear illustration of translating impact to
+dollar terms with an ROI lens.
+Project  Forward  if  Needed:  Sometimes  stakeholders  ask,  “What  does  this  mean  annually?”  If
+appropriate, you can annualize the impact. For example, if \$50K was saved in one quarter , that
+projects to \$200K per year (though caution them about assuming the effect stays constant). Only do
+this if it makes sense (e.g., for ongoing changes like a new pricing policy, an annualized view is
+relevant; for a one-time campaign, stick to the campaign period impact).
+Present these financial figures alongside the statistical results. For example, you might report: “Our analysis
+estimates the campaign generated an additional \$132K in revenue  over 3 months (95% credible interval: \$100K
+to \$160K). After accounting for the \$30K campaign cost, the net gain  is about \$102K, roughly a 3.4x ROI . In
+other words, the campaign paid for itself more than three times over.”  This way, you connect the causal
+inference to business value.
+For a churn example, a summary could be: “The new customer success initiative prevented an estimated \$180K
+in projected losses  by reducing churn (retaining \$180K worth of accounts that likely would have churned) .
+This reflects a drop in churn rate from 5% to 4%, translating to a 20% improvement.”  Such phrasing resonates
+with decision-makers because it highlights dollars and outcomes (in this case, losses avoided).
+Finally, ensure the assumptions  behind these calculations are clear . If you assumed a value per customer or
+a profit margin, state it or footnote it. This builds credibility in your analysis when others can see how you
+arrived at the dollar impact. Now that you have the quantitative results and their financial interpretation,
+you’re ready to communicate them through a dashboard.
+Step 7: Designing Tableau Dashboards for Decision-Makers
+To communicate your findings, create an intuitive and insightful dashboard, e.g., in Tableau, tailored for
+business decision-makers. The dashboard should present the causal impact analysis in a clear , visually
+engaging way, focusing on the metrics that matter (e.g., dollars, percentages, and key trends). Here’s how
+to design it:
+Highlight Key KPIs:  Use the top section of the dashboard for headline numbers. Decision-makers
+should  immediately  see  the  Total  Impact  (e.g.,  “+\$102K  net  revenue  gain”  or  “\$180K  losses
+prevented”) and other critical KPIs like ROI percentage or increase in conversion rate. Place the most
+important  metric  in  the  upper-left,  which  is  prime  real  estate  for  grabbing  attention .  For
+example,  a  big  number  showing  “+5%  Conversion  Uplift”  or  “\$X  Saved”  with  some  subtext  is
+effective.
+Visualization of Actual vs. Counterfactual:  Include a line chart comparing the actual performance
+to the modeled counterfactual over time. This visual helps stakeholders see when and how the
+intervention made a difference. Mark the intervention start on the chart (e.g., a vertical reference
+line  labeled  “Campaign  launch”).  Plot  the  actual  metric  as  a  solid  line  and  the  predicted  (no-
+intervention) as a dashed line or a differently colored line. Shade the area between them or annotate
+it to emphasize the gap. This time-series view answers when  and by how much  the metric deviated
+from expectation. It also provides confidence by showing that before the intervention, the lines24
+5. 
+24
+• 
+25
+• 
+7
+
+=== PAGE 8 ===
+
+matched closely (assuming a good model fit). In Tableau, you can accomplish this by blending the
+actual data with the model’s predicted values (exported from your analysis) and using dual-axis or
+layered plots.
+Cumulative Impact Visualization:  Consider a secondary chart that shows the cumulative impact
+over time. This could be a running total of the difference (actual minus predicted). For instance, a
+steadily rising area chart that flattens out at \$102K by the end indicates how value accumulated due
+to the intervention . Decision-makers often like this because it tells the total story at a glance –
+e.g., “we gained \$50K by end of month 1, and \$100K by end of month 2,” etc. It also shows if gains
+are leveling off or accelerating.
+Figure: Cumulative value of the intervention’s impact over time. In this example from a marketing campaign, the
+cumulative effect climbs to about 748 (in thousands of dollars) by the end of the analysis period . This indicates
+the campaign generated an extra \$748K in revenue. Such a chart helps illustrate the total impact and when it was
+achieved (most gains here occurred within a few weeks of the campaign).
+Interactive Filters (sparingly):  If your project involves multiple segments (e.g., different regions, or
+multiple campaigns), incorporate filters or buttons to let users drill down. For example, a filter for
+region could update the charts to show the impact by region. However , don’t overwhelm the viewer
+with too many options – maintain focus. 2-3 key views on a single dashboard is a good practice to
+avoid clutter . If there’s a need for more detail (say, separate dashboards for each domain or a
+detailed data table), consider using additional tabs or a storyboard rather than crowding one screen.
+Annotations and Explanations:  Because causal analysis can be complex, add helpful annotations.
+You might include a text box explaining, in plain language, the main insight: “The green line above the
+red  line  indicates  the  campaign  lifted  sales.  Total  estimated  lift  =  \$102K.”  Point  out  any  notable
+anomalies (maybe one week didn’t follow the trend due to an external event). Ensure that axis labels,
+titles,  and  legends  are  clear  (avoid  jargon  like  “BSTS  model”  –  instead  say  “Expected  sales  (no
+campaign)” for the counterfactual line). If the statistical significance is important to convey, you can
+note  it  in  a  tooltip  or  a  subtitle  (e.g.,  “Results  significant  at  95%  confidence”).  In  one  Tableau• 
+26
+26
+• 
+27
+• 
+8
+
+=== PAGE 9 ===
+
+integration, analysts even embedded the statistical summary text from CausalImpact into tooltips
+for transparency .
+Dashboard Layout:  Aim for a clean, uncluttered layout. A typical layout might be: top row has KPI
+metrics (big numbers), middle row has the main time series chart (actual vs expected), and bottom
+row has the cumulative impact or a breakdown (maybe a bar chart of total impact vs cost, showing
+ROI). Keep a consistent color scheme (e.g., actual in green, counterfactual in gray/red) and use color
+to draw attention to the intervention effect. Limit the color palette and number of chart types to
+maintain clarity .
+Usability for Decision-Makers:  Remember your audience may not be technical. Provide context:
+perhaps a short note like “Data from Jan–Jun 2025; Intervention on Mar 15, 2025” to frame the time
+period. Make sure any filters or interactive elements are intuitive (clearly label them). The dashboard
+should tell a story : first the viewer sees the headline outcome (was the intervention beneficial?), then
+they  see  the  evidence  in  the  chart,  and  they  have  the  option  to  explore  details  if  needed.  By
+designing  with  the  end-user  in  mind,  you  ensure  the  insights  are  actionable  and  not  lost  in
+complexity .
+Finally, test your dashboard by having a colleague or stakeholder use it. See if they can understand the key
+message within a minute or two. Incorporate feedback – maybe they care more about ROI percentage, so
+you ensure that’s prominently displayed. A well-designed dashboard will enable decision-makers to quickly
+grasp the impact and support their investment decisions with confidence.
+Step 8: Applying Best Practices and Avoiding Common Pitfalls
+Building a causal impact analysis involves many assumptions and choices. Adhering to best practices and
+being wary of pitfalls will strengthen the credibility of your project. Below are key recommendations:
+Ensure a Stable Baseline:  The pre-intervention period should be representative of normal behavior
+.  If  your  pre-period  includes  unusual  events  (economic  crisis,  data  anomalies),  the  model’s
+“expected” baseline may be skewed. Choose a training window that reflects typical trends, or account
+for known anomalies (e.g., add dummy variables or exclude outliers). A stable baseline yields a more
+reliable counterfactual. If the data has a trend or seasonality, make sure your model includes those
+components; otherwise, a seasonal spike might be falsely attributed to your intervention.
+Use High-Frequency Data if Available:  Higher frequency (daily or weekly data) often allows the
+model to detect changes more precisely . Important effects might wash out in monthly data. For
+example, a campaign’s impact might be a short-lived spike; if you only have monthly totals, it could
+be hard to see. When possible, opt for the finest granularity that is practical and denoise it (e.g.,
+weekly aggregation if daily is too noisy). With low-frequency data, be cautious in interpretation since
+many confounders could enter between observations.
+Incorporate Meaningful Controls:  Weave in control groups or control time series whenever you
+can. They greatly enhance causal inference by accounting for external factors . Pitfall:  using a bad
+control can be worse than none – ensure your control series is not affected by the intervention and is
+predictive of the outcome. For instance, using overall industry sales as a control for your product’s28
+• 
+29
+• 
+30
+• 
+18
+• 
+31
+• 
+8
+9
+
+=== PAGE 10 ===
+
+sales is good if your marketing didn’t influence industry-wide sales. But using a control series that
+actually did get a smaller dose of the intervention could understate the effect (since the control also
+moved). If multiple control series are available, include them (BSTS can handle multiple regressors,
+selecting the ones that matter). This approach is akin to building a synthetic control within the
+model.
+Robustness Checks (Placebo and Sensitivity Tests):  A best practice is to validate that your results
+aren’t a fluke. Conduct a placebo test  by pretending the intervention happened at a time it actually
+did not, or on a metric/group that wasn’t targeted. You should observe no significant effect in those
+cases . For example, if you apply your analysis on a control store (where no campaign ran) and
+still see a “significant impact,” something is off (maybe seasonality or another factor is fooling the
+model). Also, try slightly varying the time frame (e.g., use a longer pre-period or exclude a buffer
+period right after the intervention) to see if the estimated effect remains consistent. Significant
+changes under these tweaks might indicate the model is sensitive to assumptions.
+Beware of Overfitting and Noise:  BSTS models can overfit if you give them too many covariates or
+overly tight priors. Don’t indiscriminately throw in dozens of potential predictors – the spike-and-slab
+prior will help, but you should keep those that have economic justification. Similarly, if the posterior
+intervals seem too tight (overconfident), double-check the priors or model specification. Make sure
+your model has enough training data relative to complexity. A common pitfall is seeing patterns in
+noise – if your effect size is very small relative to the natural variation, it might not be practically
+significant even if statistically flagged. Always interpret the effect size in context (is a 0.5% uptick
+meaningful? maybe not if your sales fluctuate 5% day-to-day normally).
+Account for Seasonality and Trend:  Many time series have seasonal patterns (e.g. weekly, yearly)
+or trends that, if not modeled, can masquerade as an “impact.” Ensure your pipeline or model
+addresses this – either by deseasonalizing the data before analysis or including seasonal terms in
+the model. A pitfall would be to attribute a December increase in sales to your intervention when
+really it was holiday season – if your model didn’t know about holidays, it might misattribute the lift.
+BSTS can include seasonal components (e.g., seasonal state or holiday dummy variables). Always
+ask, “What else could explain this change?” and verify the model considered those factors.
+Communication and Visualization Missteps:  On the dashboard and reporting front, avoid clutter
+and technical jargon. One pitfall is to overwhelm decision-makers with too many figures or too much
+statistical detail, obscuring the main insight. Instead, follow visualization best practices: emphasize
+the key message, use clear labels, and provide interpretation guidance. For instance, if showing a
+confidence band, explain what it means (“the gray band shows the range of predicted sales without
+the campaign”). Another common mistake is not aligning the analysis with business context – make
+sure to tie back the impact to business KPIs (revenue, cost, etc.) as we did in ROI calculations. This
+ensures the work is actionable.
+Document Assumptions and Limitations:  Causal inference always comes with assumptions (e.g.,
+“no  major  external  shocks  during  analysis  period”  or  “control  store  performance  reflects
+counterfactual”).  Be  transparent  about  these  in  your  documentation  or  even  a  note  on  the
+dashboard. Acknowledge if, say, the model assumes the relationship between control and treated
+series remains the same after intervention (the “parallel trends”  assumption in diff-in-diff terms). If
+your  analysis  violates  an  assumption,  results  could  be  biased.  It’s  better  to  mention  it  and,  if• 
+20
+• 
+• 
+• 
+• 
+10
+
+=== PAGE 11 ===
+
+possible, quantify the risk. For example, “This analysis assumes no other concurrent initiatives affected
+churn. If there were, the attribution to this program may be overstated or understated.”  By being upfront,
+you build trust in your findings.
+Continuous Improvement:  Treat this project as iterative. As new data comes in or if the intervention
+repeats, update the analysis. Perhaps integrate the pipeline into a scheduled job (SQL ETL can run
+monthly, and you refresh the Tableau dashboard). Over time, you can refine the model (maybe
+adding new control series or using hierarchical models if you have multiple experiments). Also, keep
+learning from each analysis – was the effect smaller than expected? That insight is valuable for
+future strategy. Conversely, if your analysis shows a huge ROI, that’s evidence to perhaps scale up
+the initiative.
+By following these best practices and avoiding common pitfalls, your causal impact and investment analysis
+will  be  robust,  credible,  and  valuable.  You’ll  deliver  not  just  numbers,  but  actionable  insights  with
+confidence bounds around them. This equips decision-makers to make informed investments – and it gives
+you, the analyst, a great story to tell about how data-driven strategies prevented losses or drove gains , for
+example  “prevented \$180K in projected losses”  or  “unlocked a 20% ROI improvement” , backed by rigorous
+analysis . Good luck with your project, and may your interventions always be impactful!
+Sources:
+Brodersen et al., “Inferring causal impact using Bayesian structural time-series models”  (Google, 2015) –
+foundational paper for CausalImpact . 
+Google CausalImpact Documentation (CRAN) – usage of BSTS for causal effect estimation . 
+Rob J. Hyndman, Forecasting: Principles and Practice  – guidance on time series preparation and
+modeling (seasonality, etc.). 
+Tableau Best Practices (UCSF Data) – tips on dashboard design for clarity and performance . 
+Example case studies: Adam D. McKinnon’s “Show Me The Money – Measuring Impact Over Time” ,
+Bora Beran’s Tableau integration of CausalImpact , and Chris Bow’s marketing campaign analysis
+. These illustrate real-world applications of the techniques described. • 
+24
+• 
+1332
+• 33
+• 
+• 25
+• 23
+34
+35
+11
+
+=== PAGE 12 ===
+
+Optimizing Marketing Campaign Performance with Snowflake Cortex Analyst | by Ranjeeta Pegu |
+Medium
+https://medium.com/@ranjeetapegu/optimizing-marketing-campaign-performance-with-snowflake-cortex-analyst-eed9663fcb1c
+Telco Customer Churn Dataset - Dataset | Agents for Data
+https://www.agentsfordata.com/datasets/dat_019b59d0-b93e-770e-a75b-ad3a1c31176e/telco-customer-churn-dataset
+Predicting Sales: Time Series Analysis & Forecasting with Python | by Bisman Preet Singh | Analytics
+Vidhya | Medium
+https://medium.com/analytics-vidhya/predicting-sales-time-series-analysis-forecasting-with-python-b81d3e8ff03f
+When and how to apply causal inference in time series | by Robson Tigre |
+Medium
+https://medium.com/@robson.tigre0/when-and-how-to-apply-causal-inference-in-time-series-45533de0abbc
+ETL Pipeline For Time-Series Databases
+https://www.meegle.com/en_us/topics/etl-pipeline/etl-pipeline-for-time-series-databases
+BigQuery SQL gets time windowing and gap filling | Google Cloud Blog
+https://cloud.google.com/blog/products/data-analytics/bigquery-sql-gets-time-windowing-and-gap-filling
+Causal Impact Analysis in Time Series with Python | by Katy | Python’s Gurus | Medium
+https://medium.com/pythons-gurus/causal-impact-analysis-in-time-series-with-python-ce5c16518d89
+Adam D McKinnon - Show Me The Money! Measuring Impact Over Time
+https://www.adam-d-mckinnon.com/posts/2020-12-30-causal_impact/
+What is a Casual Impact Analysis? - Seer Interactive
+https://www.seerinteractive.com/insights/what-is-a-causal-impact-analysis-and-why-should-you-care
+Quantifying Sales Uplift With Causal Impact Analysis
+https://ibienenwoko.com/blog/causal-impact-analysis/
+Cause & Effect : A different way to explore temporal data in Tableau with R | Bora Beran
+https://boraberan.wordpress.com/2016/06/24/cause-effect-a-different-way-to-explore-temporal-data-in-tableau-with-r/
+The Role of a Fractional CFO in Risk Management - CFO Pro Analytics
+https://cfoproanalytics.com/cfo-wiki/fractional-cfo/the-role-of-a-fractional-cfo-in-risk-management/
+Step 7.3 - Best Practices for developing Tableau Dashboards | UCSF Data
+https://data.ucsf.edu/ssa/step-73-best-practices-developing-tableau-dashboards
+How can the Reverend Bayes help you find out if your campaign worked? | by Chris Bow | TDS Archive |
+Medium
+https://medium.com/data-science/how-can-i-tell-if-my-marketing-campaign-is-working-41cbf5c7dbc61
+2 3
+4
+5 6 7 8 918 20 31 32
+10
+11 12
+13
+14 15 21 22 23
+16 33
+17
+19 26 28 34
+24
+25 27 29 30
+35
+12
