@@ -1,0 +1,20 @@
+================================================================================
+BUSINESS NARRATIVE
+================================================================================
+
+✅ Our analysis estimates that the marketing campaign generated an 
+   additional $42,137.64 in revenue over the 
+   post-intervention period.
+
+💵 After accounting for the $5,000.00 campaign cost, 
+   the net gain is approximately $37,137.64, which 
+   translates to an ROI of 742.8%.
+
+🎯 This is an EXCELLENT return - the campaign paid for itself 
+   7.4x over!
+
+📊 These results are statistically significant (p = 0.0000), 
+   meaning we can be confident that the observed impact is due to 
+   the marketing intervention and not random chance.
+
+================================================================================
