@@ -1,3 +1,4 @@
+
 # 🚀 Causal Impact & Investment Decision Analysis
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
@@ -61,7 +62,8 @@ Causal-Impact-Investment-Decision-Analysis-Project/
 ├── 📂 src/                    # Core logic modules
 │   ├── data_pipeline.py       # Data cleaning & ETL
 │   ├── causal_analysis.py     # BSTS modeling & experimentation
-│   └── financial_analysis.py  # ROI & profit calculation
+│   ├── financial_analysis.py  # ROI & profit calculation
+│   └── dashboard.py           # Interactive Streamlit App
 ├── 📂 data/                   # Data storage
 │   ├── processed/             # Cleaned time-series data
 │   └── Dataset.xlsx           # Raw source data
@@ -69,6 +71,7 @@ Causal-Impact-Investment-Decision-Analysis-Project/
 │   ├── 📂 figures/            # Plots and charts
 │   ├── financial_results.csv  # Detailed metrics
 │   └── business_narrative.txt # Executive summary text
+├── config.yaml                # Project configuration
 ├── requirements.txt           # Project dependencies
 └── README.md                  # This file
 ```
@@ -80,7 +83,7 @@ Causal-Impact-Investment-Decision-Analysis-Project/
 -   **Language:** Python 3.10+
 -   **Modeling:** `statsmodels` (Unobserved Components / State Space Models), `scikit-learn` (Bayesian Ridge)
 -   **Data Processing:** `pandas`, `numpy`
--   **Visualization:** `matplotlib`, `seaborn`
+-   **Visualization:** `matplotlib`, `seaborn`, `Plotly`, `Streamlit`
 
 ---
 
@@ -105,8 +108,10 @@ Reproduce the analysis in 3 simple steps:
     python src/financial_analysis.py
     ```
 
-3.  **View Results:**
-    Check the `reports/` folder for the visual plot and business narrative.
+3.  **Run Interactive Dashboard (New!):**
+    ```bash
+    streamlit run src/dashboard.py
+    ```
 
 ---
 
@@ -116,6 +121,20 @@ To ensure our results weren't just noise, we ran a **Placebo Test**:
 -   **Method:** We pretended the intervention happened 30 days earlier than it actually did.
 -   **Hypothesis:** If the model is valid, it should show **zero impact** for this fake intervention period.
 -   **Result:** The placebo test returned a non-significant result (p > 0.05), confirming that our model correctly identifies *true* signals and ignores noise.
+
+---
+
+## 📝 Configuration & Advanced Analysis
+
+### Configuration
+Project parameters are managed in `config.yaml`. You can customize:
+-   **Dates:** Start date, intervention date
+-   **Campaign Costs:** For ROI calculation
+-   **Model Parameters:** Significance level (alpha), iterations
+-   **Segments:** Which segments to analyze
+
+### Segmented Analysis
+The pipeline now supports segmented analysis (e.g., by **Channel**, **Country**, **Device**). These can be configured in `config.yaml` or explored interactively in the Streamlit dashboard.
 
 ---
 
