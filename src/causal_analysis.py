@@ -1,3 +1,4 @@
+
 """
 Causal Impact Analysis Module
 Steps 4-5: Building BSTS Model and Interpreting Results
@@ -17,6 +18,7 @@ from pathlib import Path
 from statsmodels.tsa.statespace.structural import UnobservedComponents
 from scipy import stats
 from sklearn.linear_model import BayesianRidge
+import yaml
 
 sns.set_style('whitegrid')
 
@@ -24,12 +26,14 @@ sns.set_style('whitegrid')
 class CausalAnalyzer:
     """Causal impact analysis using structural time series"""
     
-    def __init__(self, data_dict):
+    def __init__(self, data_dict, config=None, segment=None):
         """
         Initialize with data dictionary from pipeline
         
         Args:
             data_dict: Dict with keys 'data', 'y', 'X', 'dates', 'pre_period', 'post_period'
+            config: Configuration dictionary
+            segment: Tuple of (segment_col, segment_val) or None
         """
         self.data = data_dict['data']
         self.y = data_dict['y']
@@ -40,16 +44,19 @@ class CausalAnalyzer:
         self.model = None
         self.predictions = None
         self.impact_results = None
+        self.config = config
+        self.segment = segment
         
-    def run_causal_impact(self, alpha=0.05):
+    def run_causal_impact(self):
         """
         Run Causal Impact analysis using Bayesian regression
-        
-        Args:
-            alpha: Significance level (default 0.05 for 95% CI)
         """
+        # Get alpha from config or default
+        alpha = self.config['model'].get('alpha', 0.05) if self.config else 0.05
+        
+        segment_str = f" [{self.segment[0]}={self.segment[1]}]" if self.segment else ""
         print("\n" + "=" * 80)
-        print("RUNNING CAUSAL IMPACT ANALYSIS")
+        print(f"RUNNING CAUSAL IMPACT ANALYSIS{segment_str}")
         print("=" * 80)
         
         pre_start, pre_end = self.pre_period
@@ -64,10 +71,13 @@ class CausalAnalyzer:
         y_pre = self.y[pre_start:pre_end + 1]
         X_pre = self.X[pre_start:pre_end + 1]
         
+        # Get model params from config
+        n_iter = self.config['model'].get('n_iter', 300) if self.config else 300
+        
         # Fit Bayesian Ridge regression on pre-period
         print("\nFitting Bayesian regression model on pre-intervention period...")
         self.model = BayesianRidge(
-            max_iter=300,
+            max_iter=n_iter,
             compute_score=True,
             alpha_1=1e-6,
             alpha_2=1e-6,
@@ -129,7 +139,10 @@ class CausalAnalyzer:
         t_stat, p_value = stats.ttest_1samp(residuals, 0)
         
         # Store results
+        segment_name = f"{self.segment[0]}_{self.segment[1]}" if self.segment else "aggregated"
+        
         self.impact_results = {
+            'segment': segment_name,
             'average_actual': avg_actual,
             'average_predicted': avg_predicted,
             'average_effect': avg_effect,
@@ -154,8 +167,10 @@ class CausalAnalyzer:
             raise ValueError("Must run run_causal_impact() first")
         
         r = self.impact_results
+        segment_str = f" for {r['segment']}"
+        
         print("\n" + "=" * 80)
-        print("CAUSAL IMPACT SUMMARY")
+        print(f"CAUSAL IMPACT SUMMARY{segment_str}")
         print("=" * 80)
         print(f"\n{'Metric':<30} {'Actual':<15} {'Predicted':<15} {'Effect':<15}")
         print("-" * 75)
@@ -167,10 +182,10 @@ class CausalAnalyzer:
         print()
         print(f"Statistical significance: p-value = {r['p_value']:.4f}")
         
-        if r['p_value'] < 0.05:
-            print("✓ The effect is statistically significant at α = 0.05")
+        if r['p_value'] < r['alpha']:
+            print(f"✓ The effect is statistically significant at α = {r['alpha']}")
         else:
-            print("⚠ The effect is NOT statistically significant at α = 0.05")
+            print(f"⚠ The effect is NOT statistically significant at α = {r['alpha']}")
         
         # Interpretation
         print("\n" + "=" * 80)
@@ -200,7 +215,8 @@ class CausalAnalyzer:
         if self.predictions is None:
             raise ValueError("Must run run_causal_impact() first")
         
-        print("\nGenerating visualizations...")
+        segment_str = f" ({self.segment[0]}={self.segment[1]})" if self.segment else ""
+        print(f"\nGenerating visualizations{segment_str}...")
         
         fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
         
@@ -222,7 +238,7 @@ class CausalAnalyzer:
         
         ax1.set_ylabel('Value', fontsize=12, fontweight='bold')
         ax1.legend(loc='best', fontsize=10, framealpha=0.9)
-        ax1.set_title('Original vs. Counterfactual', fontsize=14, fontweight='bold', pad=15)
+        ax1.set_title(f'Original vs. Counterfactual{segment_str}', fontsize=14, fontweight='bold', pad=15)
         ax1.grid(True, alpha=0.3)
         
         # Plot 2: Point-wise causal effect
@@ -237,7 +253,7 @@ class CausalAnalyzer:
         ax2.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
         ax2.axvline(intervention_date, color='red', linestyle=':', linewidth=2.5, alpha=0.7)
         ax2.set_ylabel('Point Effect', fontsize=12, fontweight='bold')
-        ax2.set_title('Pointwise Causal Effect', fontsize=14, fontweight='bold', pad=15)
+        ax2.set_title(f'Pointwise Causal Effect', fontsize=14, fontweight='bold', pad=15)
         ax2.legend(loc='best', fontsize=10, framealpha=0.9)
         ax2.grid(True, alpha=0.3)
         
@@ -254,7 +270,7 @@ class CausalAnalyzer:
         ax3.axvline(intervention_date, color='red', linestyle=':', linewidth=2.5, alpha=0.7)
         ax3.set_ylabel('Cumulative Effect', fontsize=12, fontweight='bold')
         ax3.set_xlabel('Date', fontsize=12, fontweight='bold')
-        ax3.set_title('Cumulative Causal Effect', fontsize=14, fontweight='bold', pad=15)
+        ax3.set_title(f'Cumulative Causal Effect', fontsize=14, fontweight='bold', pad=15)
         ax3.legend(loc='best', fontsize=10, framealpha=0.9)
         ax3.grid(True, alpha=0.3)
         
@@ -303,14 +319,17 @@ class CausalAnalyzer:
         }
         
         # Run analysis
-        placebo_analyzer = CausalAnalyzer(placebo_dict)
+        placebo_analyzer = CausalAnalyzer(placebo_dict, config=self.config, segment=self.segment)
         placebo_analyzer.run_causal_impact()
         placebo_results = placebo_analyzer.get_summary()
         
         placebo_p = placebo_results['p_value']
         print(f"\n✓ Placebo test p-value: {placebo_p:.4f}")
         
-        if placebo_p > 0.05:
+        # Alpha check
+        alpha = self.config['model'].get('alpha', 0.05) if self.config else 0.05
+        
+        if placebo_p > alpha:
             print("✅ PASS: No significant effect found (as expected)")
         else:
             print("⚠️  WARNING: Significant effect found in placebo test!")
@@ -328,50 +347,75 @@ def main():
     print("Steps 4-5: BSTS Model & Results Interpretation")
     print("=" * 80)
     
-    # Load processed data
-    pipeline = DataPipeline('Dataset.xlsx')
-    pipeline.load_data().clean_data().create_time_series()
+    # Load config
+    with open('config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
     
-    # Get analysis series for revenue
-    print("\n--- Analyzing Revenue Impact ---")
+    # Load processed data with config
+    pipeline = DataPipeline('config.yaml')
+    pipeline.load_data().clean_data()
+    
+    all_metrics = []
+    
+    # 1. Run Aggregated Analysis
+    print("\n" + "*" * 80)
+    print("AGGREGATED ANALYSIS")
+    print("*" * 80)
+    
+    pipeline.create_time_series()
     revenue_data = pipeline.get_analysis_series(metric='revenue_usd')
     
-    # Run causal analysis
-    analyzer = CausalAnalyzer(revenue_data)
+    analyzer = CausalAnalyzer(revenue_data, config=config)
     analyzer.run_causal_impact()
-    
-    # Get summary
-    results = analyzer.get_summary()
-    
-    # Extract metrics
     metrics = analyzer.get_impact_metrics()
+    all_metrics.append(metrics)
     
-    print("\n" + "=" * 80)
-    print("KEY IMPACT METRICS")
-    print("=" * 80)
-    print(f"Average daily impact: ${metrics['average_effect']:.2f}")
-    print(f"  Relative effect: {metrics['average_effect_pct']:.2f}%")
-    print(f"\nCumulative impact: ${metrics['cumulative_effect']:.2f}")
-    print(f"  Relative effect: {metrics['cumulative_effect_pct']:.2f}%")
-    print(f"\nStatistical significance: p = {metrics['p_value']:.4f}")
-    
-    # Generate plots
-    output_dir = Path('reports/figures')
+    # Generate plots for aggregated
+    output_dir = Path(config['data']['figures_dir'])
     output_dir.mkdir(parents=True, exist_ok=True)
-    
     analyzer.plot_results(save_path=output_dir / 'causal_impact_analysis.png')
-    
-    # Placebo test
     analyzer.placebo_test()
     
-    # Save metrics
-    metrics_df = pd.DataFrame([metrics])
-    metrics_df.to_csv('data/processed/impact_metrics.csv', index=False)
-    print(f"\n✓ Saved impact metrics to data/processed/impact_metrics.csv")
+    # 2. Run Segmented Analysis if configured
+    segments = config.get('segments', [])
+    if segments:
+        print("\n" + "*" * 80)
+        print("SEGMENTED ANALYSIS")
+        print("*" * 80)
+        
+        for segment_col in segments:
+            # Get unique values for the segment
+            unique_vals = pipeline.cleaned_data[segment_col].unique()
+            
+            for val in unique_vals:
+                print(f"\nProcessing Segment: {segment_col} = {val}")
+                try:
+                    pipeline.create_time_series(segment_col=segment_col, segment_val=val)
+                    seg_data = pipeline.get_analysis_series(metric='revenue_usd')
+                    
+                    seg_analyzer = CausalAnalyzer(seg_data, config=config, segment=(segment_col, val))
+                    seg_analyzer.run_causal_impact()
+                    
+                    seg_metrics = seg_analyzer.get_impact_metrics()
+                    all_metrics.append(seg_metrics)
+                    
+                    # Save segment plot
+                    clean_val = str(val).replace('/', '_').replace(' ', '_')
+                    plot_name = f'causal_impact_{segment_col}_{clean_val}.png'
+                    seg_analyzer.plot_results(save_path=output_dir / plot_name)
+                    
+                except Exception as e:
+                    print(f"Skipping segment {segment_col}={val}: {str(e)}")
+    
+    # Save all metrics
+    metrics_df = pd.DataFrame(all_metrics)
+    metrics_path = Path(config['data']['processed_dir']) / 'impact_metrics.csv'
+    metrics_df.to_csv(metrics_path, index=False)
+    print(f"\n✓ Saved impact metrics to {metrics_path}")
     
     print("\n✅ Causal analysis completed successfully!")
     
-    return analyzer, metrics
+    return analyzer, metrics_df
 
 
 if __name__ == '__main__':

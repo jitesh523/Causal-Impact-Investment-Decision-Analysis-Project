@@ -1,10 +1,11 @@
+
 """
 Financial Analysis Module
 Step 6: Translating Model Outputs into Dollar Value Impact
 
 This module:
 - Calculates financial impact from causal analysis
-- ComputesROI metrics
+- Computes ROI metrics
 - Quantifies gains/losses prevented
 - Generates business-friendly summaries
 """
@@ -12,7 +13,7 @@ This module:
 import pandas as pd
 import numpy as np
 from pathlib import Path
-
+import yaml
 
 class FinancialAnalyzer:
     """Translate causal impact to financial metrics"""
@@ -28,11 +29,12 @@ class FinancialAnalyzer:
         self.metrics = impact_metrics
         self.campaign_cost = campaign_cost
         self.financial_results = {}
+        self.segment_name = self.metrics.get('segment', 'aggregated')
         
     def calculate_roi(self):
         """Calculate Return on Investment metrics"""
         print("\n" + "=" * 80)
-        print("FINANCIAL IMPACT ANALYSIS")
+        print(f"FINANCIAL IMPACT ANALYSIS [{self.segment_name}]")
         print("=" * 80)
         
         # Revenue impact
@@ -40,6 +42,7 @@ class FinancialAnalyzer:
         avg_daily_revenue = self.metrics['average_effect']
         
         # Net profit (assuming revenue - cost)
+        # Note: reliable mostly for aggregated view unless cost is segmented
         net_profit = cumulative_revenue - self.campaign_cost
         
         # ROI calculation
@@ -51,6 +54,7 @@ class FinancialAnalyzer:
             roi_ratio = 0
         
         self.financial_results = {
+            'segment': self.segment_name,
             'cumulative_revenue_impact': cumulative_revenue,
             'average_daily_revenue_impact': avg_daily_revenue,
             'campaign_cost': self.campaign_cost,
@@ -58,7 +62,7 @@ class FinancialAnalyzer:
             'roi_percentage': roi,
             'roi_ratio': roi_ratio,
             'statistical_significance': self.metrics['p_value'],
-            'is_significant': self.metrics['p_value'] < 0.05
+            'is_significant': self.metrics['p_value'] < self.metrics.get('alpha', 0.05)
         }
         
         return self
@@ -71,7 +75,7 @@ class FinancialAnalyzer:
         r = self.financial_results
         
         print("\n" + "=" * 80)
-        print("EXECUTIVE FINANCIAL SUMMARY")
+        print(f"EXECUTIVE FINANCIAL SUMMARY [{self.segment_name}]")
         print("=" * 80)
         
         print(f"\n📊 REVENUE IMPACT")
@@ -110,7 +114,7 @@ class FinancialAnalyzer:
         
         narrative = []
         narrative.append("=" * 80)
-        narrative.append("BUSINESS NARRATIVE")
+        narrative.append(f"BUSINESS NARRATIVE [{self.segment_name}]")
         narrative.append("=" * 80)
         narrative.append("")
         
@@ -164,26 +168,24 @@ class FinancialAnalyzer:
     
     def export_results(self, output_dir='reports'):
         """Export financial results"""
+        if not self.financial_results:
+            self.calculate_roi() # Calculate if not done
+            
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         
-        if not self.financial_results:
-            self.calculate_roi()
+        # For aggregated results, we might overwrite. For segments, we should probably append or save separately.
+        # Here we just return the result dict, main will handle bulk saving.
         
-        # Save as CSV
-        df = pd.DataFrame([self.financial_results])
-        csv_path = output_path / 'financial_results.csv'
-        df.to_csv(csv_path, index=False)
-        print(f"\n✓ Exported financial results: {csv_path}")
+        # Save narrative ONLY for aggregated
+        if self.segment_name == 'aggregated':
+            narrative = self.generate_business_narrative()
+            txt_path = output_path / 'business_narrative.txt'
+            with open(txt_path, 'w') as f:
+                f.write(narrative)
+            print(f"✓ Exported business narrative: {txt_path}")
         
-        # Save narrative
-        narrative = self.generate_business_narrative()
-        txt_path = output_path / 'business_narrative.txt'
-        with open(txt_path, 'w') as f:
-            f.write(narrative)
-        print(f"✓ Exported business narrative: {txt_path}")
-        
-        return self
+        return self.financial_results
 
 
 def main():
@@ -193,34 +195,58 @@ def main():
     print("Step 6: Translating to Dollar Value Impact")
     print("=" * 80)
     
-    # Load impact metrics
-    metrics_path = 'data/processed/impact_metrics.csv'
-    metrics_df = pd.read_csv(metrics_path)
-    metrics = metrics_df.to_dict('records')[0]
+    # Load config
+    with open('config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+        
+    campaign_cost = config['campaign']['cost']
+    print(f"Campaign cost (Total): ${campaign_cost:,.2f}")
     
+    # Load impact metrics
+    metrics_path = Path(config['data']['processed_dir']) / 'impact_metrics.csv'
+    if not metrics_path.exists():
+        print(f"Error: {metrics_path} not found. Run causal_analysis.py first.")
+        return
+        
+    metrics_df = pd.read_csv(metrics_path)
     print(f"\nLoaded impact metrics from {metrics_path}")
     
-    # Assume campaign cost (you can modify this)
-    campaign_cost = 5000.0  # Example: $5K campaign cost
+    all_financial_results = []
     
-    print(f"Campaign cost: ${campaign_cost:,.2f}")
-    
-    # Run financial analysis
-    analyzer = FinancialAnalyzer(metrics, campaign_cost=campaign_cost)
-    analyzer.calculate_roi()
-    
-    # Get summary
-    summary = analyzer.get_summary()
-    
-    # Print narrative
-    print("\n" + analyzer.generate_business_narrative())
-    
-    # Export results
-    analyzer.export_results()
+    # Process each row (aggregated + segments)
+    for _, row in metrics_df.iterrows():
+        metrics = row.to_dict()
+        segment = metrics.get('segment', 'aggregated')
+        
+        # Determine cost for this segment
+        # If aggregated, use full cost.
+        # If segment, we don't have split cost. 
+        # Strategy: Use 0 cost for segments to show just Revenue Impact, 
+        # OR use full cost but that implies full cost was spent on that segment (wrong).
+        # OR just skip ROI for segments.
+        
+        current_cost = campaign_cost if segment == 'aggregated' else 0
+        
+        analyzer = FinancialAnalyzer(metrics, campaign_cost=current_cost)
+        analyzer.calculate_roi()
+        
+        # Print summary
+        if segment == 'aggregated':
+            analyzer.get_summary()
+            print("\n" + analyzer.generate_business_narrative())
+        
+        res = analyzer.export_results(output_dir=config['data']['output_dir'])
+        all_financial_results.append(res)
+        
+    # Save all financial results
+    fin_df = pd.DataFrame(all_financial_results)
+    out_path = Path(config['data']['output_dir']) / 'financial_results.csv'
+    fin_df.to_csv(out_path, index=False)
+    print(f"\n✓ Exported all financial results to {out_path}")
     
     print("\n✅ Financial analysis completed!")
     
-    return analyzer
+    return all_financial_results
 
 
 if __name__ == '__main__':
