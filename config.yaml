@@ -1,0 +1,30 @@
+# Causal Impact Project Configuration
+
+data:
+  raw_path: "Dataset.xlsx"
+  processed_dir: "data/processed"
+  output_dir: "reports"
+  figures_dir: "reports/figures"
+
+dates:
+  start_date: "2024-01-01"
+  intervention_date: "2024-03-15"
+  # Duration for pre/post period simulation
+  total_days: 150 
+  post_period_days: 76
+
+# Campaign Parameters
+campaign:
+  cost: 5000.0
+  currency: "USD"
+
+# Model Parameters
+model:
+  alpha: 0.05  # Significance level (95% CI)
+  n_iter: 2000 # Bayesian Ridge iterations
+  
+# Segmentation
+segments:
+  - "channel"
+  - "country"
+  - "device"
