@@ -1,0 +1,2 @@
+treatment_conversions,treatment_trials,treatment_rate,treatment_posterior_mean,treatment_ci_lower,treatment_ci_upper,control_conversions,control_trials,control_rate,control_posterior_mean,control_ci_lower,control_ci_upper,prob_treatment_better,expected_lift,lift_ci_lower,lift_ci_upper
+303,2316,0.13082901554404144,0.13114754098360656,0.11771380084897327,0.14518407079427414,202,2672,0.07559880239520958,0.07591623036649214,0.06618362261846289,0.08624954105448229,1.0,0.7361358919304668,0.46271523954489996,1.0501056709768741
