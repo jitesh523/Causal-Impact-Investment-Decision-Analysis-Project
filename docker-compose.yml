@@ -1,0 +1,41 @@
+# Docker Compose for Causal Impact Analysis
+# Easy local development and deployment
+
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount data for persistence
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8501/_stcore/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Run analysis pipeline
+  analysis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: [ "python" ]
+    command: [ "src/causal_analysis.py" ]
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./config.yaml:/app/config.yaml:ro
+    profiles:
+      - analysis
