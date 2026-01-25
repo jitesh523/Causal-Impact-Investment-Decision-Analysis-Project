@@ -1,18 +1,17 @@
-
 # 🚀 Causal Impact & Investment Decision Analysis
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![Status](https://img.shields.io/badge/Status-Completed-success)
+![Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen)
 ![ROI](https://img.shields.io/badge/ROI-743%25-green)
-![Statistical Significance](https://img.shields.io/badge/P--Value-%3C0.0001-brightgreen)
 
-A comprehensive, end-to-end framework for measuring the **true financial impact** of marketing campaigns using Bayesian causal inference. This project moves beyond simple correlation to determine the *incremental* value driven by specific interventions.
+A comprehensive, end-to-end framework for measuring the **true financial impact** of marketing campaigns using **Bayesian causal inference**. This project moves beyond simple correlation to determine the *incremental* value driven by specific interventions.
 
 ---
 
 ## 📊 Executive Summary
 
-This project implements a rigorous **Causal Impact Analysis** to evaluate a \$5,000 marketing campaign. Using **Bayesian Structural Time Series (BSTS)** modeling, we compared the actual observed revenue against a counterfactual "synthetic" baseline (what would have happened *without* the campaign).
+This project implements a rigorous **Causal Impact Analysis** to evaluate a \$5,000 marketing campaign. Using **Bayesian Structural Time Series (BSTS)** modeling, we compared the actual observed revenue against a counterfactual "synthetic" baseline.
 
 ### 🏆 Key Results
 
@@ -27,114 +26,89 @@ This project implements a rigorous **Causal Impact Analysis** to evaluate a \$5,
 
 ---
 
-## 📈 Visualizing the Impact
+## 📈 Dashboard & Logic
 
-The chart below shows the divergence between our actual sales and the predicted baseline after the intervention date.
+### Interactive Dashboard
+Explore the results interactively with our new Streamlit dashboard:
 
-![Causal Impact Analysis](reports/figures/causal_impact_analysis.png)
-*(Note: Visual generated from `src/causal_analysis.py`)*
+```bash
+streamlit run src/dashboard.py
+```
 
-- **Blue Line (Observed):** Actual revenue collected.
-- **Purple Dashed Line (Counterfactual):** Predicted revenue if the campaign never happened.
-- **The Gap:** Represents the causal effect (incremental lift).
+**Features:**
+- **Dynamic Scenarios:** What-if analysis with adjustable intervention dates
+- **Segment Comparison:** Compare ROI across Channels, Countries, and Devices
+- **Financial Reporting:** Automated business narrative generation
+- **Export Capabilities:** Download charts and data directly
+
+### Analysis Logic (8-Step Framework)
+1.  **Data Acquisition**: 5,000+ user-level records
+2.  **Intervention Definition**: Treatment vs. Control groups
+3.  **Data Pipeline**: ETL processing and time-series aggregation
+4.  **BSTS Modeling**: Bayesian Structural Time Series for counterfactuals
+5.  **Results Interpretation**: Computing incremental lift
+6.  **Financial Value**: Translating lift to $$$
+7.  **Visualization**: Static plots and interactive dashboards
+8.  **Validation**: Placebo tests and sensitivity analysis
 
 ---
 
-## 🛠 Methodology: The 8-Step Framework
+## 🔬 Advanced Analytics Features
 
-This project strictly follows a proven 8-step roadmap for rigorous causal inference:
+The project now includes advanced modules for deeper insights:
 
-1.  **Data Acquisition**: Sourced detailed marketing dataset (5,000 records) with user-level granularity.
-2.  **Intervention Definition**: Defined Treatment (Exposed to Ad) vs. Control (Unexposed) groups.
-3.  **Data Pipeline**: Built an ETL pipeline to clean, aggregate, and transform raw logs into time-series data.
-4.  **BSTS Modeling**: Utilized Bayesian Structural Time Series to model the counterfactual.
-5.  **Results Interpretation**: Quantified the "lift" (difference between actual and counterfactual).
-6.  **Financial Translation**: Converted statistical lift into dollar value (Revenue & ROI).
-7.  **Visualization**: Created intuitive charts for stakeholder communication.
-8.  **Validation**: Performed **Placebo Tests** (simulating a fake intervention) to validate model accuracy.
+### 1. Robustness & Validation
+- **Synthetic Control Method (`src/synthetic_control.py`)**: Alternative causal inference approach for validation.
+- **Sensitivity Analysis (`src/sensitivity_analysis.py`)**: Tests how results change with different dates, parameters, and alpha levels.
+- **Bayesian A/B Testing (`src/bayesian_ab.py`)**: Probabilistic testing for conversion rates (Beta-Binomial model).
+
+### 2. Multi-Metric Analysis
+- **Module:** `src/multi_metric_analysis.py`
+- Analyzes impact beyond revenue: **Conversions, Clicks, Impressions, User Count**.
+- Confirming that the campaign drove engagement across *all* funnel stages.
+
+### 3. Long-Term Effects
+- **Module:** `src/decay_modeling.py`
+- Models the **exponential decay** of campaign effects post-intervention.
+- Estimates the "half-life" of the marketing impact.
 
 ---
 
-## 📂 Repository Structure
+## 🛠 Project Structure & DevOps
 
 ```plaintext
 Causal-Impact-Investment-Decision-Analysis-Project/
-├── 📂 src/                    # Core logic modules
-│   ├── data_pipeline.py       # Data cleaning & ETL
-│   ├── causal_analysis.py     # BSTS modeling & experimentation
-│   ├── financial_analysis.py  # ROI & profit calculation
-│   └── dashboard.py           # Interactive Streamlit App
-├── 📂 data/                   # Data storage
-│   ├── processed/             # Cleaned time-series data
-│   └── Dataset.xlsx           # Raw source data
-├── 📂 reports/                # generated insights
-│   ├── 📂 figures/            # Plots and charts
-│   ├── financial_results.csv  # Detailed metrics
-│   └── business_narrative.txt # Executive summary text
-├── config.yaml                # Project configuration
-├── requirements.txt           # Project dependencies
-└── README.md                  # This file
+├── 📂 src/                    # Source code
+│   ├── dashboard.py           # Streamlit application
+│   ├── causal_analysis.py     # Core BSTS engine
+│   ├── synthetic_control.py   # Alternative model
+│   ├── bayesian_ab.py         # A/B testing module
+│   └── decay_modeling.py      # Decay analysis
+├── 📂 tests/                  # Unit tests (pytest)
+├── 📂 data/                   # Datasets
+├── 📂 reports/                # Generated HTML reports & figures
+├── .github/workflows/         # CI/CD Pipeline
+├── Dockerfile                 # Containerization
+├── docker-compose.yml         # Container orchestration
+└── config.yaml                # Central configuration
 ```
 
----
-
-## 💻 Tech Stack
-
--   **Language:** Python 3.10+
--   **Modeling:** `statsmodels` (Unobserved Components / State Space Models), `scikit-learn` (Bayesian Ridge)
--   **Data Processing:** `pandas`, `numpy`
--   **Visualization:** `matplotlib`, `seaborn`, `Plotly`, `Streamlit`
+### CI/CD & Testing
+- **Automated Testing:** 29 unit tests ensuring data integrity and model correctness.
+- **CI Pipeline:** GitHub Actions runs linting and tests on every push.
+- **Dockerized:** Fully containerized for easy deployment.
 
 ---
 
 ## 🚀 Quick Start
 
-Reproduce the analysis in 3 simple steps:
+### Option A: Local Python
+1.  **Install:** `pip install -r requirements.txt`
+2.  **Run Dashboard:** `streamlit run src/dashboard.py`
 
-1.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-2.  **Run the Analysis Pipeline:**
-    ```bash
-    # Step 1: Clean data and build time series
-    python src/data_pipeline.py
-
-    # Step 2: Run Causal Impact Model (BSTS)
-    python src/causal_analysis.py
-
-    # Step 3: Calculate ROI & Financials
-    python src/financial_analysis.py
-    ```
-
-3.  **Run Interactive Dashboard (New!):**
-    ```bash
-    streamlit run src/dashboard.py
-    ```
-
----
-
-## 🔬 Model Validation (Placebo Test)
-
-To ensure our results weren't just noise, we ran a **Placebo Test**:
--   **Method:** We pretended the intervention happened 30 days earlier than it actually did.
--   **Hypothesis:** If the model is valid, it should show **zero impact** for this fake intervention period.
--   **Result:** The placebo test returned a non-significant result (p > 0.05), confirming that our model correctly identifies *true* signals and ignores noise.
-
----
-
-## 📝 Configuration & Advanced Analysis
-
-### Configuration
-Project parameters are managed in `config.yaml`. You can customize:
--   **Dates:** Start date, intervention date
--   **Campaign Costs:** For ROI calculation
--   **Model Parameters:** Significance level (alpha), iterations
--   **Segments:** Which segments to analyze
-
-### Segmented Analysis
-The pipeline now supports segmented analysis (e.g., by **Channel**, **Country**, **Device**). These can be configured in `config.yaml` or explored interactively in the Streamlit dashboard.
+### Option B: Docker
+1.  **Build & Run:** `docker-compose up`
+2.  **Access:** Open `http://localhost:8501`
 
 ---
 
