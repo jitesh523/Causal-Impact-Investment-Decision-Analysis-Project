@@ -5,6 +5,7 @@ Interactive Streamlit application with:
 - Export functionality  
 - Dynamic Date Picker
 - Dark Mode support
+- Segment Heatmap Visualization
 """
 
 import streamlit as st
@@ -108,6 +109,137 @@ def create_comparison_chart(results_dict):
         showlegend=False,
         title_text="Segment Comparison"
     )
+    
+    return fig
+
+
+def create_impact_heatmap(pipeline, results_by_segment, segment_col1, segment_col2=None, dark_mode=False):
+    """
+    Create heatmap visualization of impact across segments.
+    
+    Args:
+        pipeline: DataPipeline instance
+        results_by_segment: Dict of segment -> results
+        segment_col1: Primary segment column
+        segment_col2: Optional secondary segment for 2D heatmap
+        dark_mode: Whether to use dark theme
+    
+    Returns:
+        Plotly figure
+    """
+    template = "plotly_dark" if dark_mode else "plotly_white"
+    
+    if segment_col2 is None:
+        # Single dimension heatmap (horizontal bar-style)
+        segments = list(results_by_segment.keys())
+        effects = [results_by_segment[s]['metrics']['cumulative_effect'] for s in segments]
+        rois = [results_by_segment[s]['financial']['roi_percentage'] for s in segments]
+        p_values = [results_by_segment[s]['metrics']['p_value'] for s in segments]
+        
+        # Create grid for heatmap
+        metrics = ['Impact ($)', 'ROI (%)', 'Significance']
+        z_data = [
+            effects,
+            rois,
+            [1 if p < 0.05 else 0 for p in p_values]
+        ]
+        
+        # Normalize for color scale
+        z_normalized = []
+        for row in z_data:
+            max_val = max(abs(v) for v in row) if row else 1
+            z_normalized.append([v / max_val if max_val > 0 else 0 for v in row])
+        
+        # Create hover text
+        hover_text = []
+        for i, metric in enumerate(metrics):
+            row_text = []
+            for j, seg in enumerate(segments):
+                if metric == 'Impact ($)':
+                    row_text.append(f"{seg}<br>{metric}: ${effects[j]:,.0f}")
+                elif metric == 'ROI (%)':
+                    row_text.append(f"{seg}<br>{metric}: {rois[j]:.1f}%")
+                else:
+                    row_text.append(f"{seg}<br>p-value: {p_values[j]:.4f}")
+            hover_text.append(row_text)
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=z_normalized,
+            x=segments,
+            y=metrics,
+            colorscale='RdYlGn',
+            text=hover_text,
+            hovertemplate='%{text}<extra></extra>',
+            showscale=True,
+            colorbar=dict(title='Relative<br>Performance')
+        ))
+        
+        # Add annotations for values
+        for i, metric in enumerate(metrics):
+            for j, seg in enumerate(segments):
+                if metric == 'Impact ($)':
+                    text = f"${effects[j]:,.0f}"
+                elif metric == 'ROI (%)':
+                    text = f"{rois[j]:.0f}%"
+                else:
+                    text = "✓" if p_values[j] < 0.05 else "✗"
+                
+                fig.add_annotation(
+                    x=seg, y=metric,
+                    text=text,
+                    showarrow=False,
+                    font=dict(color='white' if abs(z_normalized[i][j]) > 0.5 else 'black', size=12)
+                )
+        
+        fig.update_layout(
+            title="Segment Performance Heatmap",
+            xaxis_title=segment_col1,
+            yaxis_title="Metric",
+            template=template,
+            height=300
+        )
+        
+    else:
+        # Two-dimensional heatmap (matrix)
+        seg1_vals = sorted(set(s[0] for s in results_by_segment.keys() if isinstance(s, tuple)))
+        seg2_vals = sorted(set(s[1] for s in results_by_segment.keys() if isinstance(s, tuple)))
+        
+        z_matrix = []
+        hover_matrix = []
+        
+        for s1 in seg1_vals:
+            row = []
+            hover_row = []
+            for s2 in seg2_vals:
+                key = (s1, s2)
+                if key in results_by_segment:
+                    effect = results_by_segment[key]['metrics']['cumulative_effect']
+                    p_val = results_by_segment[key]['metrics']['p_value']
+                    row.append(effect)
+                    hover_row.append(f"{s1} x {s2}<br>Impact: ${effect:,.0f}<br>p-value: {p_val:.4f}")
+                else:
+                    row.append(None)
+                    hover_row.append("No data")
+            z_matrix.append(row)
+            hover_matrix.append(hover_row)
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=z_matrix,
+            x=seg2_vals,
+            y=seg1_vals,
+            colorscale='RdYlGn',
+            text=hover_matrix,
+            hovertemplate='%{text}<extra></extra>',
+            colorbar=dict(title='Impact ($)')
+        ))
+        
+        fig.update_layout(
+            title=f"Impact Heatmap: {segment_col1} × {segment_col2}",
+            xaxis_title=segment_col2,
+            yaxis_title=segment_col1,
+            template=template,
+            height=400
+        )
     
     return fig
 
@@ -379,6 +511,11 @@ def main():
                 st.subheader("📊 Segment Comparison")
                 comp_fig = create_comparison_chart(results)
                 st.plotly_chart(comp_fig, use_container_width=True)
+                
+                # Heatmap visualization
+                st.subheader("🗺️ Performance Heatmap")
+                heatmap_fig = create_impact_heatmap(pipeline, results, segment_col, dark_mode=dark_mode)
+                st.plotly_chart(heatmap_fig, use_container_width=True)
                 
                 # Comparison table
                 st.subheader("📋 Detailed Comparison")
