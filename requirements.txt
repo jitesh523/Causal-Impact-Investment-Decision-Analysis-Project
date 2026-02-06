@@ -27,3 +27,4 @@ ipykernel>=6.25.0
 
 # Utilities
 tqdm>=4.65.0
+reportlab>=4.0.0
