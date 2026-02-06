@@ -28,3 +28,5 @@ ipykernel>=6.25.0
 # Utilities
 tqdm>=4.65.0
 reportlab>=4.0.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
