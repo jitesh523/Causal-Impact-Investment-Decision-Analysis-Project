@@ -18,9 +18,9 @@ class TestCausalAnalyzer:
     """Test suite for CausalAnalyzer class"""
     
     @pytest.fixture
-    def analysis_data(self):
+    def analysis_data(self, mock_config_file):
         """Create analysis data for testing"""
-        pipeline = DataPipeline('config.yaml')
+        pipeline = DataPipeline(str(mock_config_file))
         pipeline.load_data().clean_data().create_time_series()
         return pipeline.get_analysis_series(metric='revenue_usd')
     
@@ -99,9 +99,9 @@ class TestCausalAnalyzer:
 class TestCausalAnalyzerEdgeCases:
     """Test edge cases and error handling"""
     
-    def test_analysis_without_run_raises_error(self):
+    def test_analysis_without_run_raises_error(self, mock_config_file):
         """Test that getting summary before run raises error"""
-        pipeline = DataPipeline('config.yaml')
+        pipeline = DataPipeline(str(mock_config_file))
         pipeline.load_data().clean_data().create_time_series()
         data = pipeline.get_analysis_series(metric='revenue_usd')
         
@@ -110,9 +110,9 @@ class TestCausalAnalyzerEdgeCases:
         with pytest.raises(ValueError):
             analyzer.get_summary()
     
-    def test_metrics_without_run_raises_error(self):
+    def test_metrics_without_run_raises_error(self, mock_config_file):
         """Test that getting metrics before run raises error"""
-        pipeline = DataPipeline('config.yaml')
+        pipeline = DataPipeline(str(mock_config_file))
         pipeline.load_data().clean_data().create_time_series()
         data = pipeline.get_analysis_series(metric='revenue_usd')
         

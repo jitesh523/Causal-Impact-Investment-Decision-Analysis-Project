@@ -17,9 +17,9 @@ class TestDataPipeline:
     """Test suite for DataPipeline class"""
     
     @pytest.fixture
-    def pipeline(self):
+    def pipeline(self, mock_config_file):
         """Create a pipeline instance for testing"""
-        return DataPipeline('config.yaml')
+        return DataPipeline(str(mock_config_file))
     
     @pytest.fixture
     def loaded_pipeline(self, pipeline):
@@ -108,16 +108,16 @@ class TestDataPipeline:
 class TestDataIntegrity:
     """Test data integrity and edge cases"""
     
-    def test_no_negative_revenue(self):
+    def test_no_negative_revenue(self, mock_config_file):
         """Test that revenue values are non-negative"""
-        pipeline = DataPipeline('config.yaml')
+        pipeline = DataPipeline(str(mock_config_file))
         pipeline.load_data().clean_data()
         
         assert (pipeline.cleaned_data['revenue_usd'] >= 0).all()
     
-    def test_date_range_validity(self):
+    def test_date_range_validity(self, mock_config_file):
         """Test that date ranges are valid"""
-        pipeline = DataPipeline('config.yaml')
+        pipeline = DataPipeline(str(mock_config_file))
         pipeline.load_data().clean_data().create_time_series()
         
         dates = pipeline.time_series_data['date']
