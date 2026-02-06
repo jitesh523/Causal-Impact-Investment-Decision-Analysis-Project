@@ -242,7 +242,7 @@ class ExperimentTracker:
         self,
         experiment_name: str,
         metric_keys: Optional[List[str]] = None
-    ) -> 'pandas.DataFrame':
+    ) -> Any:
         """
         Compare runs within an experiment.
         
