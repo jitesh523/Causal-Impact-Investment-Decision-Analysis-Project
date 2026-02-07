@@ -1,41 +1,145 @@
-# Docker Compose for Causal Impact Analysis
-# Easy local development and deployment
+# Docker Compose Configuration for Causal Impact Analysis
+# ========================================================
+# Full stack with API, Database, and Dashboard
 
 version: '3.8'
 
 services:
-  dashboard:
+  # FastAPI REST API
+  api:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8501:8501"
-    volumes:
-      # Mount data for persistence
-      - ./data:/app/data
-      - ./reports:/app/reports
-      - ./config.yaml:/app/config.yaml:ro
+      - "8000:8000"
     environment:
-      - STREAMLIT_SERVER_HEADLESS=true
-      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
-    restart: unless-stopped
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/causal_impact
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./experiments:/app/experiments
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8501/_stcore/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+    restart: unless-stopped
 
-  # Optional: Run analysis pipeline
-  analysis:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=causal_impact
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis for caching and job queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/causal_impact
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Background Job Scheduler
+  scheduler:
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: [ "python" ]
-    command: [ "src/causal_analysis.py" ]
+    command: python -m src.scheduler
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/causal_impact
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./data:/app/data
-      - ./reports:/app/reports
-      - ./config.yaml:/app/config.yaml:ro
+      - ./output:/app/output
+      - ./scheduling:/app/scheduling
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  # Prometheus for metrics (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
     profiles:
-      - analysis
+      - monitoring
+    restart: unless-stopped
+
+  # Grafana for visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+
+networks:
+  default:
+    name: causal-impact-network
