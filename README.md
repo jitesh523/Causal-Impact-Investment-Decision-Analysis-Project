@@ -42,7 +42,8 @@ This project implements a rigorous **Causal Impact Analysis** to evaluate market
 |--------|-------------|
 | `dashboard.py` | Interactive Streamlit dashboard |
 | `pdf_report.py` | Executive PDF report generation |
-| `anomaly_detection.py` | **NEW** Multi-method anomaly detection |
+| `anomaly_detection.py` | Multi-method anomaly detection |
+| `drift_detection.py` | **NEW** Model & data drift monitoring |
 | `multi_metric_analysis.py` | Multi-metric impact analysis |
 | `decay_modeling.py` | Campaign effect decay modeling |
 
@@ -52,7 +53,9 @@ This project implements a rigorous **Causal Impact Analysis** to evaluate market
 | `api.py` | FastAPI REST API with auto-docs |
 | `database.py` | SQLite/PostgreSQL integration |
 | `experiment_tracker.py` | MLflow-style experiment tracking |
-| `scheduler.py` | **NEW** Automated analysis scheduling |
+| `scheduler.py` | Automated analysis scheduling |
+| `cloud_connectors.py` | **NEW** AWS S3/GCS/BigQuery connectors |
+| `data_upload.py` | **NEW** Data upload with validation |
 
 ---
 
