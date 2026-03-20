@@ -39,8 +39,15 @@ class TestEndToEndPipeline:
         
         # Generate data
         data = {
+            'user_id': np.arange(n_rows),
             'date': dates,
+            'treatment_exposed': np.random.choice([0, 1], n_rows),
             'revenue_usd': np.random.uniform(1000, 5000, n_rows) + np.linspace(0, 1000, n_rows),
+            'spend_usd': np.random.uniform(100, 500, n_rows),
+            'roi': np.random.uniform(0.1, 0.5, n_rows),
+            'impressions': np.random.randint(100, 1000, n_rows),
+            'clicks': np.random.randint(10, 100, n_rows),
+            'conversion': np.random.randint(1, 10, n_rows),
             'channel': np.random.choice(['email', 'social', 'search'], n_rows),
             'region': np.random.choice(['North', 'South', 'East', 'West'], n_rows),
             'transactions': np.random.randint(10, 100, n_rows),
@@ -61,7 +68,7 @@ class TestEndToEndPipeline:
     def mock_config(self, tmp_path, mock_dataset):
         """Create a mock config file."""
         config = {
-            'data': {'file_path': str(mock_dataset)},
+            'data': {'raw_path': str(mock_dataset)},
             'dates': {
                 'start_date': '2024-01-01',
                 'end_date': '2024-07-18',
@@ -138,8 +145,7 @@ class TestEndToEndPipeline:
         analyzer.run_causal_impact()
         
         metrics = analyzer.get_impact_metrics()
-        
-        assert metrics['segment'] == 'channel:email'
+        assert metrics['segment'] == 'channel_email'
 
 
 class TestDatabaseIntegration:
