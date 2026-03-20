@@ -39,8 +39,15 @@ class TestEndToEndPipeline:
         
         # Generate data
         data = {
+            'user_id': np.arange(n_rows),
             'date': dates,
+            'treatment_exposed': np.random.choice([0, 1], n_rows),
             'revenue_usd': np.random.uniform(1000, 5000, n_rows) + np.linspace(0, 1000, n_rows),
+            'spend_usd': np.random.uniform(100, 500, n_rows),
+            'roi': np.random.uniform(0.1, 0.5, n_rows),
+            'impressions': np.random.randint(100, 1000, n_rows),
+            'clicks': np.random.randint(10, 100, n_rows),
+            'conversion': np.random.randint(1, 10, n_rows),
             'channel': np.random.choice(['email', 'social', 'search'], n_rows),
             'region': np.random.choice(['North', 'South', 'East', 'West'], n_rows),
             'transactions': np.random.randint(10, 100, n_rows),
