@@ -172,10 +172,4 @@ Causal-Impact-Investment-Decision-Analysis-Project/
 
 ---
 
-## 📝 License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-*Built with ❤️ by the Analytics Team*
