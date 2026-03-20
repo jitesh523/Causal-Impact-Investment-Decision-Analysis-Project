@@ -61,7 +61,7 @@ class TestEndToEndPipeline:
     def mock_config(self, tmp_path, mock_dataset):
         """Create a mock config file."""
         config = {
-            'data': {'file_path': str(mock_dataset)},
+            'data': {'raw_path': str(mock_dataset)},
             'dates': {
                 'start_date': '2024-01-01',
                 'end_date': '2024-07-18',

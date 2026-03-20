@@ -7,7 +7,7 @@ validate invariants that should hold across all inputs.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 import numpy as np
 import pandas as pd
 import sys
@@ -199,7 +199,7 @@ class TestDatabaseProperties:
         effect_value=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
         cost_value=st.floats(min_value=1, max_value=1e6, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=20)
+    @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_database_round_trip(self, segment_name, effect_value, cost_value, tmp_path):
         """
         Property: Data saved to database should be retrievable unchanged.
