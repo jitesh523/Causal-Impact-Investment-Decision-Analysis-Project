@@ -145,8 +145,7 @@ class TestEndToEndPipeline:
         analyzer.run_causal_impact()
         
         metrics = analyzer.get_impact_metrics()
-        
-        assert metrics['segment'] == 'channel:email'
+        assert metrics['segment'] == 'channel_email'
 
 
 class TestDatabaseIntegration:
