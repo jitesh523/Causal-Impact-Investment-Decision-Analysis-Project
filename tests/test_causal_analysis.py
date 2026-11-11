@@ -14,6 +14,38 @@ from data_pipeline import DataPipeline
 from causal_analysis import CausalAnalyzer
 
 
+@pytest.mark.parametrize("field,interval_sign", [
+    ("point_effect", 0),
+    ("point_effect_lower", -1),
+    ("point_effect_upper", 1),
+])
+def test_integer_observations_preserve_fractional_point_effects(monkeypatch, field, interval_sign):
+    """Integer-valued metrics still have fractional counterfactual effects."""
+    from unittest.mock import Mock
+    from scipy import stats
+
+    observed = np.arange(12, dtype=np.int64) + 10
+    effect = np.tile([0.25, -0.75, 0.5, -0.125], 3)
+    predicted = observed.astype(float) - effect
+    uncertainty = np.full(12, 0.2)
+    fitted_model = Mock()
+    fitted_model.predict.return_value = predicted, uncertainty
+    fitted_model.score.return_value = 1.0
+    monkeypatch.setattr("causal_analysis.BayesianRidge", lambda **kwargs: fitted_model)
+    analyzer = CausalAnalyzer({
+        "data": pd.DataFrame({"observed": observed}),
+        "y": observed,
+        "X": np.ones((12, 1)),
+        "dates": pd.date_range("2024-01-01", periods=12),
+        "pre_period": [0, 7],
+        "post_period": [8, 11],
+    }).run_causal_impact()
+
+    expected = effect[8:] + interval_sign * stats.norm.ppf(0.975) * uncertainty[8:]
+    np.testing.assert_allclose(analyzer.predictions[field][8:], expected, atol=1e-12)
+    np.testing.assert_array_equal(analyzer.predictions[field][:8], np.zeros(8))
+
+
 class TestCausalAnalyzer:
     """Test suite for CausalAnalyzer class"""
     

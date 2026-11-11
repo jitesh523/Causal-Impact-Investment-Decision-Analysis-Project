@@ -104,13 +104,14 @@ class CausalAnalyzer:
         }
         
         # Calculate point-wise effects (only in post-period)
-        point_effect = np.zeros_like(self.y)
+        # Counterfactual differences can be fractional even for integer observations.
+        point_effect = np.zeros_like(self.y, dtype=float)
         point_effect[post_start:post_end + 1] = self.y[post_start:post_end + 1] - y_pred[post_start:post_end + 1]
         
-        point_effect_lower = np.zeros_like(self.y)
+        point_effect_lower = np.zeros_like(self.y, dtype=float)
         point_effect_lower[post_start:post_end + 1] = self.y[post_start:post_end + 1] - y_upper[post_start:post_end + 1]
         
-        point_effect_upper = np.zeros_like(self.y)
+        point_effect_upper = np.zeros_like(self.y, dtype=float)
         point_effect_upper[post_start:post_end + 1] = self.y[post_start:post_end + 1] - y_lower[post_start:post_end + 1]
         
         self.predictions['point_effect'] = point_effect
