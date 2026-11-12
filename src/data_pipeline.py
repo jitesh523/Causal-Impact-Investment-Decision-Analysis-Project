@@ -48,7 +48,7 @@ class DataPipeline:
     
     def create_time_series(self, start_date=None, intervention_date=None, segment_col=None, segment_val=None):
         """
-        Create time series data, optionally filtered by segment
+        Create time series data, optionally filtered by segment (None means no filter).
         """
         # Use config dates if not provided
         if not start_date:
@@ -57,13 +57,13 @@ class DataPipeline:
             intervention_date = self.config['dates']['intervention_date']
             
         print(f"\nCreating time series (intervention: {intervention_date})")
-        if segment_col and segment_val:
+        if segment_col and segment_val is not None:
             print(f"Filter: {segment_col} = {segment_val}")
             
         df = self.cleaned_data.copy()
         
         # Apply filter if specified
-        if segment_col and segment_val:
+        if segment_col and segment_val is not None:
             df = df[df[segment_col] == segment_val]
         
         if len(df) == 0:

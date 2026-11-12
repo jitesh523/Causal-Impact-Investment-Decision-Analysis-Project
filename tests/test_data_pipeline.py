@@ -31,7 +31,7 @@ class TestDataPipeline:
     def cleaned_pipeline(self, loaded_pipeline):
         """Pipeline with cleaned data"""
         loaded_pipeline.clean_data()
-        return cleaned_pipeline
+        return loaded_pipeline
     
     def test_pipeline_initialization(self, pipeline):
         """Test that pipeline initializes correctly"""
@@ -103,6 +103,24 @@ class TestDataPipeline:
             
             assert loaded_pipeline.time_series_data is not None
             assert len(loaded_pipeline.time_series_data) > 0
+
+    @pytest.mark.parametrize('segment_val', [0, False, ''])
+    def test_segment_filtering_accepts_falsey_values(self, cleaned_pipeline, segment_val):
+        df = cleaned_pipeline.cleaned_data
+        df['test_segment'] = [segment_val] * 400 + ['other'] * (len(df) - 400)
+        expected = df[df['test_segment'] == segment_val]
+
+        cleaned_pipeline.create_time_series(segment_col='test_segment', segment_val=segment_val)
+
+        series = cleaned_pipeline.time_series_data
+        assert series['n_users'].sum() == len(expected)
+        assert series['revenue_usd'].sum() == pytest.approx(expected['revenue_usd'].sum())
+
+    def test_absent_zero_segment_raises_instead_of_using_all_users(self, cleaned_pipeline):
+        cleaned_pipeline.cleaned_data['test_segment'] = 1
+
+        with pytest.raises(ValueError, match='No data found for specified segment'):
+            cleaned_pipeline.create_time_series(segment_col='test_segment', segment_val=0)
 
 
 class TestDataIntegrity:
