@@ -17,6 +17,7 @@ class DataPipeline:
         self.raw_data = None
         self.cleaned_data = None
         self.time_series_data = None
+        self.intervention_date = None
         
     def load_data(self):
         """Load data from Excel file"""
@@ -112,6 +113,7 @@ class DataPipeline:
         daily_agg['period'] = np.where(daily_agg['date'] < intervention, 'pre', 'post')
         
         self.time_series_data = daily_agg
+        self.intervention_date = intervention
         return self
 
     def get_analysis_series(self, metric='revenue_usd'):
@@ -125,7 +127,7 @@ class DataPipeline:
         merged.columns = ['treated', 'control']
         merged = merged.sort_index()
         
-        intervention = pd.to_datetime(self.config['dates']['intervention_date'])
+        intervention = self.intervention_date
         
         # Find index for intervention
         dates = merged.index
