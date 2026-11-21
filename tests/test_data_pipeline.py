@@ -91,6 +91,18 @@ class TestDataPipeline:
         assert 'dates' in result
         assert 'pre_period' in result
         assert 'post_period' in result
+
+    @pytest.mark.parametrize('intervention_date', ['2024-02-01', '2024-04-15'])
+    def test_analysis_periods_follow_custom_intervention_date(self, loaded_pipeline, intervention_date):
+        loaded_pipeline.clean_data().create_time_series(intervention_date=intervention_date)
+        result = loaded_pipeline.get_analysis_series()
+        boundary = pd.Timestamp(intervention_date)
+        pre_end = result['pre_period'][1]
+        post_start = result['post_period'][0]
+
+        assert pre_end + 1 == post_start
+        assert (result['dates'][:pre_end + 1] < boundary).all()
+        assert (result['dates'][post_start:] >= boundary).all()
     
     def test_segment_filtering(self, loaded_pipeline):
         """Test segment-based filtering"""
